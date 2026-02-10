@@ -19,7 +19,9 @@ npm install
 
 # Copy the example env file and add your credentials
 cp .env.example .env
-# Edit .env with your POLYMARKET_PRIVATE_KEY and POLYMARKET_FUNDER_ADDRESS
+# IMPORTANT: Edit .env and replace "0x..." with your actual credentials:
+#   - POLYMARKET_PRIVATE_KEY: Your Polygon wallet private key
+#   - POLYMARKET_FUNDER_ADDRESS: Your Polymarket proxy wallet address
 
 # Edit config.json to adjust trading parameters
 # Set "live": true in config.json when ready for real trades
@@ -27,6 +29,14 @@ cp .env.example .env
 # Run the bot
 bun run start
 ```
+
+## Check Balance
+
+```bash
+bun run balance          # or: npm run balance
+```
+
+Prints your current USDC balance and CLOB spending allowance. Requires `.env` credentials.
 
 ## Stop
 
@@ -79,6 +89,7 @@ The "Ride the Wave" strategy bets that by minute 5-10 of a 15-minute window, BTC
 ```
 standalone/
 ├── main.ts              # Entry point — run this
+├── balance.ts           # Check account balance
 ├── config.json          # Trading parameters and risk limits
 ├── .env                 # API credentials (keep secret)
 ├── src/
@@ -86,6 +97,7 @@ standalone/
 │   ├── executor.ts      # Order placement
 │   ├── guardrails.ts    # Risk management
 │   ├── market-discovery.ts  # Finds active 15-min markets
+│   ├── balance.ts       # Balance fetching
 │   ├── client.ts        # Polymarket CLOB client
 │   └── config.ts        # Config types and defaults
 ├── package.json

@@ -6,14 +6,16 @@
   "main": "main.ts",
   "scripts": {
     "start": "bun run main.ts",
+    "balance": "bun run balance.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@polymarket/clob-client": "^4",
+    "dotenv": "^17.2.4",
     "ethers": "^5.8.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
   }
 }

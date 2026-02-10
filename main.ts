@@ -14,6 +14,7 @@
  *   POLYMARKET_FUNDER_ADDRESS - Proxy wallet address from Polymarket
  */
 
+import "dotenv/config";
 import { readFileSync } from "fs";
 import { resolveConfig } from "./src/config.js";
 import { initClient } from "./src/client.js";
@@ -50,9 +51,17 @@ log(`Tick interval: ${config.tickIntervalSec}s`);
 log(`Max order: $${config.maxOrderSize} | Max position: $${config.maxPositionSize} | Max daily loss: $${config.maxDailyLoss}`);
 log(`Entry window: ${config.entryWindowMinStart}-${config.entryWindowMinEnd}min | Min price: $${config.minEntryPrice} | Take profit: ${config.takeProfitPct * 100}%`);
 
-if (!config.privateKey || !config.funderAddress) {
-  console.error("\nMissing POLYMARKET_PRIVATE_KEY or POLYMARKET_FUNDER_ADDRESS environment variables.");
-  console.error("Set them in your shell or create a .env file.");
+if (!config.privateKey || !config.funderAddress ||
+    config.privateKey === "0x..." || config.funderAddress === "0x...") {
+  console.error("\nError: Missing or invalid API credentials in .env file.");
+  console.error("\nPlease:");
+  console.error("  1. Copy .env.example to .env");
+  console.error("  2. Replace the placeholder values with your actual credentials:");
+  console.error("     - POLYMARKET_PRIVATE_KEY: Your Polygon wallet private key");
+  console.error("     - POLYMARKET_FUNDER_ADDRESS: Your Polymarket proxy wallet address");
+  console.error("\nCurrent values:");
+  console.error(`  POLYMARKET_PRIVATE_KEY: ${config.privateKey ? (config.privateKey.substring(0, 6) + "...") : "(empty)"}`);
+  console.error(`  POLYMARKET_FUNDER_ADDRESS: ${config.funderAddress || "(empty)"}`);
   process.exit(1);
 }
 
