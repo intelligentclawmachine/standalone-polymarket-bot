@@ -39,7 +39,7 @@ try {
   console.log("  ──────────────────────────");
   const fmt = (x: string) => {
     const n = Number(x);
-    if (Number.isFinite(n)) return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (Number.isFinite(n)) return n.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 });
     return x;
   };
 
