@@ -17,8 +17,12 @@ Every 30 seconds, the bot:
 # Install dependencies
 npm install
 
-# Edit .env with your credentials (already pre-filled)
-# Set LIVE=1 when ready for real trades
+# Copy the example env file and add your credentials
+cp .env.example .env
+# Edit .env with your POLYMARKET_PRIVATE_KEY and POLYMARKET_FUNDER_ADDRESS
+
+# Edit config.json to adjust trading parameters
+# Set "live": true in config.json when ready for real trades
 
 # Run the bot
 bun run start
@@ -30,37 +34,29 @@ bun run start
 
 ## Configuration
 
-All settings are in `.env`:
+Configuration is split into two files:
 
-### Credentials
+### `.env` - API Credentials (keep secret)
 | Variable | Description |
 |----------|-------------|
 | `POLYMARKET_PRIVATE_KEY` | Your Polygon wallet private key |
 | `POLYMARKET_FUNDER_ADDRESS` | Proxy wallet address from your Polymarket profile |
-| `SIGNATURE_TYPE` | `0` = EOA, `1` = Magic Link (default), `2` = Browser wallet |
 
-### Trading Mode
-| Variable | Values | Description |
-|----------|--------|-------------|
-| `LIVE` | `0` / `1` | `0` = dry-run (default, logs only), `1` = real orders |
-| `ENABLED` | `0` / `1` | `0` = disabled, `1` = active (default) |
-
-### Risk Limits
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MAX_ORDER_SIZE` | `10` | Max USDC per order |
-| `MAX_POSITION_SIZE` | `50` | Max total USDC exposure |
-| `MAX_DAILY_LOSS` | `25` | Auto-stops trading after this loss |
-| `MAX_TRADES_PER_HOUR` | `10` | Rate limit |
-
-### Strategy
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MIN_ENTRY_PRICE` | `0.60` | Only buy if leader is at this price or higher |
-| `ENTRY_WINDOW_START` | `5` | Start looking for entries at this many minutes remaining |
-| `ENTRY_WINDOW_END` | `10` | Stop looking after this many minutes remaining |
-| `TAKE_PROFIT_PCT` | `0.80` | Sell early at this % gain (0.80 = 80%) |
-| `TICK_INTERVAL` | `30` | Seconds between each check |
+### `config.json` - Trading Parameters
+| Field | Default | Description |
+|-------|---------|-------------|
+| `signatureType` | `1` | `0` = EOA, `1` = Magic Link, `2` = Browser wallet |
+| `live` | `false` | `false` = dry-run (logs only), `true` = real orders |
+| `enabled` | `true` | `false` = disabled, `true` = active |
+| `maxOrderSize` | `10` | Max USDC per order |
+| `maxPositionSize` | `50` | Max total USDC exposure |
+| `maxDailyLoss` | `25` | Auto-stops trading after this loss |
+| `maxTradesPerHour` | `10` | Rate limit |
+| `minEntryPrice` | `0.60` | Only buy if leader is at this price or higher |
+| `entryWindowStart` | `5` | Start looking for entries at this many minutes remaining |
+| `entryWindowEnd` | `10` | Stop looking after this many minutes remaining |
+| `takeProfitPct` | `0.80` | Sell early at this % gain (0.80 = 80%) |
+| `tickInterval` | `30` | Seconds between each check |
 
 ## Strategy Logic
 
@@ -83,7 +79,8 @@ The "Ride the Wave" strategy bets that by minute 5-10 of a 15-minute window, BTC
 ```
 standalone/
 ├── main.ts              # Entry point — run this
-├── .env                 # Your credentials and config
+├── config.json          # Trading parameters and risk limits
+├── .env                 # API credentials (keep secret)
 ├── src/
 │   ├── strategy.ts      # Trading logic (edit this to change strategy)
 │   ├── executor.ts      # Order placement

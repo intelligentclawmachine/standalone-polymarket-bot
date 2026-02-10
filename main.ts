@@ -2,39 +2,43 @@
  * Standalone Polymarket BTC 15-Minute Trader
  *
  * Usage:
- *   bun run main.ts                          # dry-run mode (default)
- *   LIVE=1 bun run main.ts                   # live trading
- *   POLYMARKET_PRIVATE_KEY=0x... bun run main.ts   # override key
+ *   bun run main.ts                          # uses config.json settings
+ *   POLYMARKET_PRIVATE_KEY=0x... bun run main.ts   # override key from .env
+ *
+ * Configuration:
+ *   - config.json: Trading parameters and risk limits
+ *   - .env: API credentials (private key, funder address)
  *
  * Environment variables:
  *   POLYMARKET_PRIVATE_KEY   - Polygon wallet private key
  *   POLYMARKET_FUNDER_ADDRESS - Proxy wallet address from Polymarket
- *   LIVE                     - Set to "1" to disable dry-run
- *   ENABLED                  - Set to "0" to disable trading (default: "1")
- *   TICK_INTERVAL            - Seconds between ticks (default: 30)
  */
 
+import { readFileSync } from "fs";
 import { resolveConfig } from "./src/config.js";
 import { initClient } from "./src/client.js";
 import { startService, stopService } from "./src/trader-service.js";
 
 const env = process.env;
 
+// Load config from config.json
+const configFile = JSON.parse(readFileSync("./config.json", "utf-8"));
+
 const config = resolveConfig({
   privateKey: env.POLYMARKET_PRIVATE_KEY || "",
   funderAddress: env.POLYMARKET_FUNDER_ADDRESS || "",
-  signatureType: parseInt(env.SIGNATURE_TYPE || "1") as 0 | 1 | 2,
-  enabled: env.ENABLED !== "0",
-  dryRun: env.LIVE !== "1",
-  maxOrderSize: parseFloat(env.MAX_ORDER_SIZE || "10"),
-  maxPositionSize: parseFloat(env.MAX_POSITION_SIZE || "50"),
-  maxDailyLoss: parseFloat(env.MAX_DAILY_LOSS || "25"),
-  maxTradesPerHour: parseInt(env.MAX_TRADES_PER_HOUR || "10"),
-  minEntryPrice: parseFloat(env.MIN_ENTRY_PRICE || "0.60"),
-  entryWindowMinStart: parseInt(env.ENTRY_WINDOW_START || "5"),
-  entryWindowMinEnd: parseInt(env.ENTRY_WINDOW_END || "10"),
-  takeProfitPct: parseFloat(env.TAKE_PROFIT_PCT || "0.80"),
-  tickIntervalSec: parseInt(env.TICK_INTERVAL || "30"),
+  signatureType: configFile.signatureType ?? 1,
+  enabled: configFile.enabled ?? true,
+  dryRun: !(configFile.live ?? false),
+  maxOrderSize: configFile.maxOrderSize ?? 10,
+  maxPositionSize: configFile.maxPositionSize ?? 50,
+  maxDailyLoss: configFile.maxDailyLoss ?? 25,
+  maxTradesPerHour: configFile.maxTradesPerHour ?? 10,
+  minEntryPrice: configFile.minEntryPrice ?? 0.60,
+  entryWindowMinStart: configFile.entryWindowStart ?? 5,
+  entryWindowMinEnd: configFile.entryWindowEnd ?? 10,
+  takeProfitPct: configFile.takeProfitPct ?? 0.80,
+  tickIntervalSec: configFile.tickInterval ?? 30,
 });
 
 const log = (...args: any[]) => console.log(new Date().toISOString(), ...args);

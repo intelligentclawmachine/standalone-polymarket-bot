@@ -1,0 +1,14 @@
+{
+  "signatureType": 1,
+  "live": false,
+  "enabled": true,
+  "maxOrderSize": 10,
+  "maxPositionSize": 50,
+  "maxDailyLoss": 25,
+  "maxTradesPerHour": 10,
+  "minEntryPrice": 0.60,
+  "entryWindowStart": 5,
+  "entryWindowEnd": 10,
+  "takeProfitPct": 0.80,
+  "tickInterval": 30
+}
