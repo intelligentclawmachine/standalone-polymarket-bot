@@ -1,0 +1,10 @@
+{
+  "signatureType": 1,
+  "live": true,
+  "enabled": true,
+  "maxOrderSize": 40,
+  "minEntryPrice": 0.60,
+  "entryWindowStart": 5,
+  "entryWindowEnd": 13,
+  "tickInterval": 10
+}

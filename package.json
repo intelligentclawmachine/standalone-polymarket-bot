@@ -1,0 +1,21 @@
+{
+  "name": "polymarket-trader-standalone",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Standalone BTC 15-minute Polymarket trader bot",
+  "main": "main.ts",
+  "scripts": {
+    "start": "bun run main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@polymarket/clob-client": "^4.22.8",
+    "bun": "^1.3.9",
+    "claude": "^0.1.1",
+    "ethers": "^5.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
