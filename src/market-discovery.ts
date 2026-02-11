@@ -7,6 +7,7 @@
  */
 
 import { GAMMA_HOST, MARKET_DURATION_SEC } from "./config.js";
+import { getClient, isClientReady } from "./client.js";
 
 export interface MarketOutcome {
   tokenId: string;
@@ -31,25 +32,15 @@ export interface ActiveMarket {
 /**
  * Calculate the Unix start timestamp of the current 15-minute slot.
  */
-export function getCurrentSlotStart(nowSec?: number): number {
+function getCurrentSlotStart(nowSec?: number): number {
   const now = nowSec ?? Math.floor(Date.now() / 1000);
   return Math.floor(now / MARKET_DURATION_SEC) * MARKET_DURATION_SEC;
 }
 
 /**
- * Get how many seconds remain in the current 15-minute slot.
- */
-export function getSecondsRemaining(nowSec?: number): number {
-  const now = nowSec ?? Math.floor(Date.now() / 1000);
-  const slotStart = getCurrentSlotStart(now);
-  const slotEnd = slotStart + MARKET_DURATION_SEC;
-  return Math.max(0, slotEnd - now);
-}
-
-/**
  * Build the expected market slug for a given slot start time.
  */
-export function buildMarketSlug(slotStartSec: number): string {
+function buildMarketSlug(slotStartSec: number): string {
   return `btc-updown-15m-${slotStartSec}`;
 }
 
@@ -57,28 +48,13 @@ export function buildMarketSlug(slotStartSec: number): string {
  * Fetch market metadata from the Gamma API by slug.
  * Returns null if market not found.
  */
-export async function fetchMarketBySlug(slug: string): Promise<any | null> {
+async function fetchMarketBySlug(slug: string): Promise<any | null> {
   try {
     const res = await fetch(`${GAMMA_HOST}/markets?slug=${slug}`);
     if (!res.ok) return null;
     const markets = await res.json();
     if (!Array.isArray(markets) || markets.length === 0) return null;
     return markets[0];
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch the event (which contains multiple markets/outcomes) by slug.
- */
-export async function fetchEventBySlug(slug: string): Promise<any | null> {
-  try {
-    const res = await fetch(`${GAMMA_HOST}/events?slug=${slug}`);
-    if (!res.ok) return null;
-    const events = await res.json();
-    if (!Array.isArray(events) || events.length === 0) return null;
-    return events[0];
   } catch {
     return null;
   }
@@ -115,32 +91,41 @@ async function tryFetchActiveMarket(slotStart: number, nowSec: number): Promise<
   const endTime = slotStart + MARKET_DURATION_SEC;
   const secondsRemaining = Math.max(0, endTime - nowSec);
 
-  // Parse outcomes from the market tokens
+  // Parse token IDs and outcome labels from Gamma metadata
   const outcomes: MarketOutcome[] = [];
 
-  // Gamma API returns clobTokenIds as a JSON string array and outcomePrices similarly
   let tokenIds: string[] = [];
-  let prices: string[] = [];
   let outcomeLabels: string[] = [];
 
   try {
     tokenIds = typeof raw.clobTokenIds === "string" ? JSON.parse(raw.clobTokenIds) : (raw.clobTokenIds || []);
-    prices = typeof raw.outcomePrices === "string" ? JSON.parse(raw.outcomePrices) : (raw.outcomePrices || []);
     outcomeLabels = typeof raw.outcomes === "string" ? JSON.parse(raw.outcomes) : (raw.outcomes || []);
   } catch {
-    // If parsing fails, try alternate field names
     tokenIds = raw.clob_token_ids || [];
-    prices = raw.outcome_prices || [];
     outcomeLabels = raw.outcomes || [];
   }
+
+  // Fetch live prices from CLOB orderbook instead of Gamma's stale outcomePrices
+  const client = isClientReady() ? getClient() : null;
 
   for (let i = 0; i < tokenIds.length; i++) {
     const label = (outcomeLabels[i] || "").toLowerCase();
     const outcome: "Up" | "Down" = label.includes("up") ? "Up" : "Down";
+
+    let price = 0;
+    if (client) {
+      try {
+        const midpoint = await client.getMidpoint(tokenIds[i]);
+        price = parseFloat(midpoint?.mid ?? midpoint) || 0;
+      } catch {
+        // CLOB midpoint failed — skip this outcome
+      }
+    }
+
     outcomes.push({
       tokenId: tokenIds[i],
       outcome,
-      price: parseFloat(prices[i]) || 0,
+      price,
     });
   }
 

@@ -5,8 +5,8 @@
  * 1. Wait until 5-10 minutes remain in the 15-min market
  * 2. Identify the leading outcome (Up or Down)
  * 3. If leading outcome price >= $0.60, BUY it
- * 4. If holding and unrealized gain >= 80%, SELL early
- * 5. Otherwise hold to resolution ($1.00 if correct, $0.00 if wrong)
+ * 4. Hold to resolution — never sell during an active market
+ * 5. Cash out after market resolves ($1.00 if correct, $0.00 if wrong)
  *
  * The thesis: by minute 5-10, BTC's direction is mostly baked in,
  * so the $0.60+ leader is statistically likely to resolve correct.
@@ -16,7 +16,7 @@ import { ActiveMarket, MarketOutcome, getLeadingOutcome, isInEntryWindow } from 
 import { TraderConfig } from "./config.js";
 import { getGuardrailState, PositionRecord } from "./guardrails.js";
 
-export type Signal = "BUY" | "SELL" | "HOLD" | "WAIT";
+export type Signal = "BUY" | "HOLD" | "WAIT";
 
 export interface TradeSignal {
   signal: Signal;
@@ -24,7 +24,7 @@ export interface TradeSignal {
   reason: string;
   suggestedSize?: number;     // Number of shares to buy
   suggestedPrice?: number;    // Price to pay per share
-  unrealizedGainPct?: number; // For SELL signals
+  unrealizedGainPct?: number;
 }
 
 /**
@@ -103,14 +103,14 @@ function evaluateEntry(market: ActiveMarket, config: TraderConfig): TradeSignal 
 }
 
 /**
- * Evaluate whether to exit (sell) an existing position.
+ * Evaluate an existing position — always HOLD during the active market.
+ * Cash-out happens separately after the market resolves (see trader-service).
  */
 function evaluateExit(
   market: ActiveMarket,
   position: PositionRecord,
-  config: TraderConfig,
+  _config: TraderConfig,
 ): TradeSignal {
-  // Find current price of our held outcome
   const held = market.outcomes.find((o) => o.tokenId === position.tokenId);
   if (!held) {
     return { signal: "HOLD", reason: "Can't find current price for held position" };
@@ -119,33 +119,9 @@ function evaluateExit(
   const currentValue = held.price * position.size;
   const unrealizedGainPct = (currentValue - position.costBasis) / position.costBasis;
 
-  // Take profit if gain exceeds threshold
-  if (unrealizedGainPct >= config.takeProfitPct) {
-    return {
-      signal: "SELL",
-      outcome: held,
-      reason: `Take profit: ${(unrealizedGainPct * 100).toFixed(1)}% gain >= ${(config.takeProfitPct * 100).toFixed(0)}% target`,
-      suggestedSize: position.size,
-      suggestedPrice: held.price,
-      unrealizedGainPct,
-    };
-  }
-
-  // If market is about to close (< 1 min) and we're in profit, consider selling
-  if (market.minutesRemaining < 1 && unrealizedGainPct > 0.1) {
-    return {
-      signal: "SELL",
-      outcome: held,
-      reason: `Near-expiry profit lock: ${(unrealizedGainPct * 100).toFixed(1)}% gain with <1min remaining`,
-      suggestedSize: position.size,
-      suggestedPrice: held.price,
-      unrealizedGainPct,
-    };
-  }
-
   return {
     signal: "HOLD",
-    reason: `Holding "${position.outcome}" at ${(unrealizedGainPct * 100).toFixed(1)}% unrealized (target: ${(config.takeProfitPct * 100).toFixed(0)}%)`,
+    reason: `Holding "${position.outcome}" at ${(unrealizedGainPct * 100).toFixed(1)}% unrealized — waiting for resolution`,
     unrealizedGainPct,
   };
 }
