@@ -7,6 +7,7 @@
   "scripts": {
     "start": "bun run main.ts",
     "balance": "bun run balance.ts",
+    "balance-health": "bun run scripts/balance-health.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

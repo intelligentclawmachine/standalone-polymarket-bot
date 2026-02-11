@@ -34,6 +34,7 @@ bun run start
 
 ```bash
 bun run balance          # or: npm run balance
+bun run balance --json   # machine-friendly JSON summary for automations
 ```
 
 Prints your current USDC balance and CLOB spending allowance. Requires `.env` credentials.
