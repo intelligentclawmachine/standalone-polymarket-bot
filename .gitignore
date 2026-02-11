@@ -13,6 +13,8 @@ node_modules/
 
 # bun
 .bun/
+bun.lock
+bun.lockb
 
 # builds
 dist/
