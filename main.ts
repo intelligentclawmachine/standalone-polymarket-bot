@@ -12,13 +12,14 @@
  * Environment variables:
  *   POLYMARKET_PRIVATE_KEY   - Polygon wallet private key
  *   POLYMARKET_FUNDER_ADDRESS - Proxy wallet address from Polymarket
+ *   POLYGON_RPC_URL          - Polygon RPC endpoint (default: https://polygon-rpc.com)
  */
 
-import "dotenv/config";
 import { readFileSync } from "fs";
 import { resolveConfig } from "./src/config.js";
 import { initClient } from "./src/client.js";
 import { startService, stopService } from "./src/trader-service.js";
+import { startRedemptionTimer, stopRedemptionTimer } from "./src/redeemer.js";
 
 const env = process.env;
 
@@ -32,13 +33,9 @@ const config = resolveConfig({
   enabled: configFile.enabled ?? true,
   dryRun: !(configFile.live ?? false),
   maxOrderSize: configFile.maxOrderSize ?? 10,
-  maxPositionSize: configFile.maxPositionSize ?? 50,
-  maxDailyLoss: configFile.maxDailyLoss ?? 25,
-  maxTradesPerHour: configFile.maxTradesPerHour ?? 10,
   minEntryPrice: configFile.minEntryPrice ?? 0.60,
   entryWindowMinStart: configFile.entryWindowStart ?? 5,
   entryWindowMinEnd: configFile.entryWindowEnd ?? 10,
-  takeProfitPct: configFile.takeProfitPct ?? 0.80,
   tickIntervalSec: configFile.tickInterval ?? 30,
 });
 
@@ -48,20 +45,12 @@ log("=== Polymarket BTC 15m Trader ===");
 log(`Mode: ${config.dryRun ? "DRY RUN" : "LIVE TRADING"}`);
 log(`Trading: ${config.enabled ? "ENABLED" : "DISABLED"}`);
 log(`Tick interval: ${config.tickIntervalSec}s`);
-log(`Max order: $${config.maxOrderSize} | Max position: $${config.maxPositionSize} | Max daily loss: $${config.maxDailyLoss}`);
-log(`Entry window: ${config.entryWindowMinStart}-${config.entryWindowMinEnd}min | Min price: $${config.minEntryPrice} | Take profit: ${config.takeProfitPct * 100}%`);
+log(`Max order: $${config.maxOrderSize}`);
+log(`Entry window: ${config.entryWindowMinStart}-${config.entryWindowMinEnd}min | Min price: $${config.minEntryPrice}`);
 
-if (!config.privateKey || !config.funderAddress ||
-    config.privateKey === "0x..." || config.funderAddress === "0x...") {
-  console.error("\nError: Missing or invalid API credentials in .env file.");
-  console.error("\nPlease:");
-  console.error("  1. Copy .env.example to .env");
-  console.error("  2. Replace the placeholder values with your actual credentials:");
-  console.error("     - POLYMARKET_PRIVATE_KEY: Your Polygon wallet private key");
-  console.error("     - POLYMARKET_FUNDER_ADDRESS: Your Polymarket proxy wallet address");
-  console.error("\nCurrent values:");
-  console.error(`  POLYMARKET_PRIVATE_KEY: ${config.privateKey ? (config.privateKey.substring(0, 6) + "...") : "(empty)"}`);
-  console.error(`  POLYMARKET_FUNDER_ADDRESS: ${config.funderAddress || "(empty)"}`);
+if (!config.privateKey || !config.funderAddress) {
+  console.error("\nMissing POLYMARKET_PRIVATE_KEY or POLYMARKET_FUNDER_ADDRESS environment variables.");
+  console.error("Set them in your shell or create a .env file.");
   process.exit(1);
 }
 
@@ -77,10 +66,14 @@ try {
 // Start the trading loop
 startService(config, log);
 
+// Start the standalone redemption timer (first sweep in 30s, then every 45min)
+startRedemptionTimer(config.privateKey, config.funderAddress, log);
+
 // Graceful shutdown
 const shutdown = () => {
   log("Shutting down...");
   stopService(log);
+  stopRedemptionTimer();
   process.exit(0);
 };
 

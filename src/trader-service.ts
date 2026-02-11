@@ -3,7 +3,7 @@
  *
  * Ticks every N seconds (default 30). On each tick:
  * 1. Discover the current active 15-min BTC market
- * 2. Evaluate the strategy (BUY / SELL / HOLD / WAIT)
+ * 2. Evaluate the strategy (BUY / HOLD / WAIT)
  * 3. Execute if signal is actionable
  * 4. Log everything
  */
@@ -11,8 +11,9 @@
 import { TraderConfig } from "./config.js";
 import { discoverCurrentMarket, ActiveMarket } from "./market-discovery.js";
 import { evaluateMarket, TradeSignal } from "./strategy.js";
-import { executeBuy, executeSell } from "./executor.js";
-import { getGuardrailState, activateKillswitch } from "./guardrails.js";
+import { executeBuy } from "./executor.js";
+import { activateKillswitch } from "./guardrails.js";
+import { getClient, isClientReady } from "./client.js";
 
 export interface TickResult {
   timestamp: string;
@@ -26,7 +27,6 @@ type Logger = (...args: any[]) => void;
 
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
-let lastTickResult: TickResult | null = null;
 let tickCount = 0;
 
 /**
@@ -45,13 +45,11 @@ export async function tick(config: TraderConfig, logger: Logger): Promise<TickRe
     result.market = await discoverCurrentMarket();
     if (!result.market) {
       logger(`[tick #${++tickCount}] No active BTC 15m market found`);
-      lastTickResult = result;
       return result;
     }
 
     if (result.market.closed) {
       logger(`[tick #${++tickCount}] Market ${result.market.slug} is closed`);
-      lastTickResult = result;
       return result;
     }
 
@@ -63,13 +61,19 @@ export async function tick(config: TraderConfig, logger: Logger): Promise<TickRe
     const pricesStr = mkt.outcomes.map((o) => `${o.outcome}=$${o.price.toFixed(2)}`).join(" ");
     const timeStr = `${mkt.minutesRemaining.toFixed(1)}min left`;
 
-    logger(`[tick #${++tickCount}] ${mkt.slug} | ${pricesStr} | ${timeStr} | ${sig.signal}: ${sig.reason}`);
+    let balanceStr = "";
+    if (isClientReady()) {
+      try {
+        const bal = await getClient().getBalanceAllowance({ asset_type: "COLLATERAL" as any });
+        balanceStr = ` | Bal: $${(parseFloat(bal.balance) / 1e6).toFixed(2)}`;
+      } catch {}
+    }
+
+    logger(`[tick #${++tickCount}] ${mkt.slug} | ${pricesStr} | ${timeStr}${balanceStr} | ${sig.signal}: ${sig.reason}`);
 
     // 3. Execute if actionable
     if (sig.signal === "BUY") {
       result.execution = await executeBuy(sig, mkt, config, logger);
-    } else if (sig.signal === "SELL") {
-      result.execution = await executeSell(sig, mkt, config, logger);
     }
 
     if (result.execution && !result.execution.success) {
@@ -87,7 +91,6 @@ export async function tick(config: TraderConfig, logger: Logger): Promise<TickRe
     }
   }
 
-  lastTickResult = result;
   return result;
 }
 
@@ -125,25 +128,4 @@ export function stopService(logger: Logger): void {
   }
   isRunning = false;
   logger("[service] Trader service stopped");
-}
-
-/**
- * Check if the service is running.
- */
-export function isServiceRunning(): boolean {
-  return isRunning;
-}
-
-/**
- * Get the last tick result (for monitoring tools).
- */
-export function getLastTickResult(): TickResult | null {
-  return lastTickResult;
-}
-
-/**
- * Get the tick count since last start.
- */
-export function getTickCount(): number {
-  return tickCount;
 }
